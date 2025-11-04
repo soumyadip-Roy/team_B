@@ -263,7 +263,7 @@ namespace ConsoleAppVoter
 
         public override void RegisterVoteInDB(string name, int age, string constituency, string candidate, string voter_id, bool isInBlacklist) {
 
-            if (age >= 18)
+            if (age >= 18 && VerifyPassportUser(voter_id))
             {
                 try
                 {
@@ -274,7 +274,7 @@ namespace ConsoleAppVoter
                         var sqlQuerry = "Insert into VOTING_DAY_TABLE values (@CONSTITUENCY, @CANDIDATE_NAME)";
                         using (SqlCommand command = new SqlCommand(sqlQuerry, conn_voter))
                         {
-                            command.Parameters.AddWithValue("@CONSTITUENCY", constituency);
+                            command.Parameters.AddWithValue("@CONSTITUENCY", "NRI_VOTE");
                             command.Parameters.AddWithValue("@CANDIDATE_NAME", candidate);
                             command.ExecuteNonQuery();
                             Console.WriteLine("Thank You For Voting!");
@@ -302,6 +302,59 @@ namespace ConsoleAppVoter
                 {
                     DisconnectToDatabase();
                 }
+            }
+            
+        }
+
+        bool VerifyPassportUser(string voter_id)
+        {
+            try
+            {
+                ConnectToDatabase();
+                var passport = GetVoterCurrentPassportID();
+                var sqlQuerry = "Select * from PASSPORT_VERIFICATION where VOTER_ID=@voter_id";
+                using (SqlCommand command = new SqlCommand(sqlQuerry, conn_voter))
+                {
+                    command.Parameters.AddWithValue("@voter_id", voter_id);
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.HasRows)
+                        {
+                            if (reader.Read())
+                            {
+                                if (passport == reader.GetString(0))
+                                {
+                                    Console.WriteLine("<==========PASSPORT_VERIFICATION_COMPLETE==========>");
+                                    return true;
+                                }
+                                else
+                                {
+                                    Console.WriteLine("<==========PASSWORD_VERIFICATION_FAILED==========>");
+                                    throw new ArgumentException("PASSWORD_VERIFICATION_FAILED_ERROR");
+                                    
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("No Passport Exists...Error");
+                            throw new ArgumentException("PASSPORT_DOESNT_EXIST_ERROR");
+
+                        }
+                    }
+                    Console.WriteLine("No Such Passport exists");
+                    throw new ArgumentException("PASSPORT_DOESNT_EXIST_ERROR");
+
+                }
+            }
+            catch(Exception e)
+            {
+                Console.WriteLine(e.ToString());
+                return false;
+            }
+            finally
+            {
+                DisconnectToDatabase();
             }
             
         }
