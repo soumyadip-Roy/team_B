@@ -3,40 +3,247 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.SqlServer.Server;
+using Microsoft.Data.Sql;
+using Microsoft.Data.SqlClient;
+using System.Data;
 
 namespace ConsoleAppVoter
 {
     internal class NRIVoter : Voter
     {
-        public override void GetVoterId()
+        static string connection_string = "server = LAPTOP-MDVNPCGM;database=VOTER_PROJECT;TrustServerCertificate=Yes;Trusted_Connection=True";
+        static SqlConnection conn_voter = new SqlConnection(connection_string) { };
+        
+
+        public void ConnectToDatabase()
         {
-            Console.WriteLine("Function 1");
+            conn_voter.Open();
+        }
+        public void DisconnectToDatabase()
+        {
+            conn_voter.Close();
+        }
+        public override void SetVoterDetails(string name, DateOnly date_of_birth, string voter_id, string constituency, string polling_booth, int voting_status)
+        {
+            try
+            {ConnectToDatabase();
+            string sqlQuery = "INSERT INTO VOTER_TABLE VALUES(@VOTER_ID,@NAME,@DATE_OF_BIRTH,@CONSTITUENCY,@POLLING_BOOTH,@VOTING_STATUS)";
+
+            using(SqlCommand command = new SqlCommand(sqlQuery, conn_voter))
+            {
+                    //command.Parameters.AddWithValue("@TABLE_NAME", "VOTER_TABLE");
+                    command.Parameters.AddWithValue("@VOTER_ID", voter_id);
+                    command.Parameters.AddWithValue("@NAME", name);
+                    command.Parameters.AddWithValue("@DATE_OF_BIRTH", date_of_birth);
+                    command.Parameters.AddWithValue("@CONSTITUENCY", constituency);
+                    command.Parameters.AddWithValue("@POLLING_BOOTH", polling_booth);
+                    command.Parameters.AddWithValue("@VOTING_STATUS", voting_status);
+                    //SqlDataAdapter adapter = new SqlDataAdapter(sqlQuery, conn_voter);
+                    //DataTable datatable = new DataTable();
+                    //adapter.Fill(datatable);
+
+                    int affectedRows = command.ExecuteNonQuery();
+                    Console.WriteLine($"Insert successful. Rows affected: {affectedRows}");
+
+                }
+                DisconnectToDatabase();
+            }
+            catch(Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            
+        }
+        public override string GetVoterId(string name, string constituency)
+        {
+            string sqlQuerry = "Select * from VOTER_TABLE where NAME=@VOTER_NAME and CONSTITUENCY=@VOTER_CONSTITUENCY";
+            
+            try
+            {
+                ConnectToDatabase();
+                using (SqlCommand command = new SqlCommand(sqlQuerry, conn_voter))
+                {
+                    command.Parameters.AddWithValue("@VOTER_NAME", name);
+                    command.Parameters.AddWithValue("@VOTER_CONSTITUENCY", constituency);
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.HasRows)
+                        {
+                            while (reader.Read())
+                            {
+                                var voter_id = reader.GetString(0);
+                                Console.WriteLine($"VOTER_ID: {voter_id}");
+                                DisconnectToDatabase();
+                                return voter_id;
+                            }
+                        }
+                        throw new ArgumentException("NO_DATA_FOUND_IN_RESULT");
+                    }
+                }
+                
+            }
+            catch(Exception e)
+            {
+                DisconnectToDatabase();
+                Console.WriteLine(e.ToString());
+                return "NO DATA FOUND ERROR";
+            }
         }
         public override string GetVoterName()
         {
-            Console.WriteLine("Function 2");
-            return "Hello";
+            Console.WriteLine("Please Enter Your Name as Mentioned in the Voter List: ");
+            var name = Console.ReadLine();
+            return name;
         }
-        public override int GetVoterStatus()
+        public override int GetVoterStatus(int age, bool isInBlacklist, string voter_id)
         {
-            Console.WriteLine("Function 3");
-            return 0;
+            try
+            {
+                ConnectToDatabase();
+                if (age >= 18 && !isInBlacklist)
+                {
+                    var sqlQuerry = "Select * from VOTER_TABLE where VOTER_ID = @VOTER_ID";
+                    using (SqlCommand command = new SqlCommand(sqlQuerry, conn_voter))
+                    {
+                        command.Parameters.AddWithValue("@VOTER_ID", voter_id);
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            if (reader.HasRows)
+                            {
+                                while (reader.Read())
+                                {
+                                    var voting_status = reader.GetInt32(5);
+
+                                    if (voting_status == 0)
+                                    {
+                                        Console.WriteLine($"THE VOTER IS ELIGIBLE TO VOTE");
+                                       
+                                        return voting_status;
+                                    }
+                                    else if(voting_status==1)
+                                    {
+                                        Console.WriteLine("<==========UPDATING_VOTER_DATABASE==========>");
+                                        Console.WriteLine("<==========THE_VOTER_HAS_ALREADY_VOTED==========>");
+                                        //sqlQuerry = "Update VOTER_TABLE set VOTING_STATUS = 0 where VOTER_ID = @VOTER_ID";
+                                        //using (SqlCommand command_update = new SqlCommand(sqlQuerry, conn_voter))
+                                        //{
+                                        //    command_update.Parameters.AddWithValue("@VOTER_ID", voter_id);
+                                        //    Console.WriteLine("<==========UPDATED_VOTER_DATABASE==========>");
+                                        //}
+                                        Console.WriteLine($"THE VOTER IS ELIGIBLE TO VOTE NEXT YEAR");
+                                        
+                                        return 1;
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine("<==========UPDATING_VOTER_DATABASE==========>");
+                                        Console.WriteLine("<==========THE_VOTER_HAS_BEEN_BANNED==========>");
+                                        //sqlQuerry = "Update VOTER_TABLE set VOTING_STATUS = 0 where VOTER_ID = @VOTER_ID";
+                                        //using (SqlCommand command_update = new SqlCommand(sqlQuerry, conn_voter))
+                                        //{
+                                        //    command_update.Parameters.AddWithValue("@VOTER_ID", voter_id);
+                                        //    Console.WriteLine("<==========UPDATED_VOTER_DATABASE==========>");
+                                        //}
+                                        Console.WriteLine($"THE VOTER IS NOT ELIGIBLE TO VOTE NEXT YEAR");
+                                        
+                                        return voting_status;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                }
+                throw new ArgumentException("NO_DATA_FOUND_IN_RESULT");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+                
+                return -2;
+            }
+            finally
+            {
+                DisconnectToDatabase();
+            }
         }
 
         public override string GetVoterConstituency()
         {
-            Console.WriteLine("Function 4");
-            return "hello";
+            Console.WriteLine("Please Enter Your Constituency as Mentioned in the Voter List: ");
+            var constituency = Console.ReadLine();
+            return constituency;
         }
-        public override string GetVoterPollingBooth()
+        public override string GetVoterPollingBooth(string voter_id)
         {
-            Console.WriteLine("Function 5");
-            return "hello";
+            try
+            {
+                ConnectToDatabase();
+                string sqlQuery = "Select * from VOTER_TABLE where VOTER_ID = @VOTER_ID";
+                
+                using(SqlCommand command = new SqlCommand(sqlQuery, conn_voter))
+                {
+                    command.Parameters.AddWithValue("@VOTER_ID", voter_id);
+                    using(SqlDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.HasRows)
+                        {
+                            while (reader.Read())
+                            {
+                                var polling_booth = reader.GetString(4);
+                                Console.WriteLine($"POLLING_BOOTH = {polling_booth}");
+                                return polling_booth;
+                            }
+                        }
+                        throw new ArgumentException("NO_DATA_FOUNF_IN_RESULT");
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                Console.WriteLine(e.ToString());
+                return "POLLING_BOOTH_GET_ERROR";
+            }
+            finally
+            {
+                DisconnectToDatabase();
+            }
         }
-        public override int GetVoterAge(DateOnly birthDate)
+        public override int GetVoterAge(string voter_id)
         {
-            Console.WriteLine("Function 6");
-            return 0;
+            try
+            {
+                ConnectToDatabase();
+                string sqlQuery = "Select * from VOTER_TABLE where VOTER_ID = @VOTER_ID";
+
+                using (SqlCommand command = new SqlCommand(sqlQuery, conn_voter))
+                {
+                    command.Parameters.AddWithValue("@VOTER_ID", voter_id);
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.HasRows)
+                        {
+                            while (reader.Read())
+                            {
+                                var age = Math.Truncate((DateTime.Now.Date- reader.GetDateTime(2).Date).TotalDays/365);
+                                Console.WriteLine($"AGE = {age}");
+                                return Convert.ToInt16(age);
+                            }
+                        }
+                        throw new ArgumentException("NO_DATA_FOUND_IN_RESULT");
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+                return -1;
+            }
+            finally
+            {
+                DisconnectToDatabase();
+            }
         }
 
         public string GetVoterCurrentResidence()
@@ -46,8 +253,77 @@ namespace ConsoleAppVoter
         }
         public string GetVoterCurrentPassportID()
         {
-            Console.WriteLine("Function 8");
-            return "hello";
+            Console.WriteLine("<==========NRI_PASSPORT_ENTRY==========>");
+            Console.Write(">PLEAE ENTER YOUR PASSPORT NUMBER: ");
+            var passport_num = Console.ReadLine();
+            Console.WriteLine("<==========THANK_YOU_FOR_YOUR_COOPERATION==========>");
+
+            return passport_num;
+        }
+
+        public override void RegisterVoteInDB(string name, int age, string constituency, string candidate, string voter_id, bool isInBlacklist) {
+
+            if (age >= 18)
+            {
+                try
+                {
+                    var voting_status = GetVoterStatus(age, isInBlacklist, voter_id);
+                    ConnectToDatabase();
+                    if(voting_status==0)
+                    {
+                        var sqlQuerry = "Insert into VOTING_DAY_TABLE values (@CONSTITUENCY, @CANDIDATE_NAME)";
+                        using (SqlCommand command = new SqlCommand(sqlQuerry, conn_voter))
+                        {
+                            command.Parameters.AddWithValue("@CONSTITUENCY", constituency);
+                            command.Parameters.AddWithValue("@CANDIDATE_NAME", candidate);
+                            command.ExecuteNonQuery();
+                            Console.WriteLine("Thank You For Voting!");
+                            sqlQuerry = "Update VOTER_TABLE set VOTING_STATUS = 1 where VOTER_ID = @VOTER_ID";
+                            using (SqlCommand command_update = new SqlCommand(sqlQuerry, conn_voter))
+                            {
+                                command_update.Parameters.AddWithValue("@VOTER_ID", voter_id);
+                                int affected_rows = command_update.ExecuteNonQuery();
+                                Console.WriteLine("<==========UPDATED_VOTER_DATABASE==========>");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        //Console.WriteLine("The Voter is not eligible to vote anymore");
+                        throw new ArgumentException("MULTIPLE_VOTES_ATTEMPT");
+
+                    }
+                }
+                catch(Exception e)
+                {
+                    Console.WriteLine(e.ToString());
+                }
+                finally
+                {
+                    DisconnectToDatabase();
+                }
+            }
+            
+        }
+
+        public override void ResetVotingStatusinDB(string voter_id) {
+
+            ConnectToDatabase();
+            var sqlQuerry = "Update VOTER_TABLE set VOTING_STATUS = 0 where VOTER_ID = @VOTER_ID";
+            using (SqlCommand command_update = new SqlCommand(sqlQuerry, conn_voter))
+            {
+                command_update.Parameters.AddWithValue("@VOTER_ID", voter_id);
+                int affected_rows = command_update.ExecuteNonQuery();
+                if (affected_rows > 0)
+                {
+                    Console.WriteLine("<==========UPDATED_VOTER_DATABASE==========>");
+                }
+                else
+                {
+                    Console.WriteLine("<==========NO_RECORDS_FOUND==========>");
+                }
+            }
+            DisconnectToDatabase();
         }
 
         public NRIVoter() { }
