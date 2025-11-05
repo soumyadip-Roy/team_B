@@ -8,7 +8,7 @@ namespace ConsoleAppVoter
 {
     interface IVotingRights
     {
-        void RegisterVoteInDB(string name, int age, string constituency, string candidate, string voter_id, bool isInBlacklist);
+        void CastVote();
         void ResetVotingStatusinDB(string voter_id);
     }
 }

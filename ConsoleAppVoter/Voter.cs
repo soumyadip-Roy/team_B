@@ -15,7 +15,7 @@ namespace ConsoleAppVoter
         public abstract string GetVoterConstituency();
         public abstract string GetVoterPollingBooth(string voter_id);
         public abstract int GetVoterAge(string voter_id);
-        public abstract void RegisterVoteInDB(string name, int age, string constituency, string candidate, string voter_id, bool isInBlacklist);
+        public abstract void CastVote();
         public abstract void ResetVotingStatusinDB(string voter_id);
 
 

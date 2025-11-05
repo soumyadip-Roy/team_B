@@ -244,7 +244,7 @@ namespace ConsoleAppVoter
             }
         }
 
-        public override void RegisterVoteInDB(string name, int age, string constituency, string candidate, string voter_id, bool isInBlacklist)
+        public void RegisterVoteInDB(string name, int age, string constituency, string candidate, string voter_id, bool isInBlacklist)
         {
             if (age >= 18)
             {
@@ -287,7 +287,7 @@ namespace ConsoleAppVoter
                 }
             }
         }
-        public override void ResetVotingStatusinDB(string voter_id)
+        public void ResetVotingStatusinDB(string name, int age, string constituency, string candidate, string voter_id, bool isInBlacklist)
         {
             ConnectToDatabase();
             var sqlQuerry = "Update VOTER_TABLE set VOTING_STATUS = 0 where VOTER_ID = @VOTER_ID";
@@ -305,6 +305,52 @@ namespace ConsoleAppVoter
                 }
             }
             DisconnectToDatabase();
+        }
+        public override void CastVote()
+        {
+            var name = GetVoterName();
+            var constituency = GetVoterConstituency();
+            var id = GetVoterId(name, constituency);
+            var age = GetVoterAge(id);
+            var sqlQuery = "Select * from CANDIDATE_TABLE where CONSTITUENCY=@voter_constituency";
+            try
+            {
+                ConnectToDatabase();
+                using (SqlCommand command = new SqlCommand(sqlQuery, conn_voter))
+                {
+                    command.Parameters.AddWithValue("@voter_constituency", constituency);
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.HasRows)
+                        {
+                            int count = 0;
+                            Dictionary<int, string> candidate_table = new Dictionary<int, string>();
+                            Console.WriteLine("The Candidates Are: ");
+
+
+                            while (reader.Read())
+                            {
+                                Console.WriteLine($"[{count + 1}]::: Name: {reader.GetString(0)}, Constituency: {reader.GetString(1)}, Party: {reader.GetString(2)}, Candidate_ID: {reader.GetString(3)}");
+                                candidate_table.Add(++count, reader.GetString(0));
+                            }
+
+                            Console.Write("Please Enter the Candidate Number You would like to vote for [1,2,3...] : ");
+                            RegisterVoteInDB(name, age, constituency, candidate_table[Convert.ToInt16(Console.ReadLine())], id, false);
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            finally
+            {
+                DisconnectToDatabase();
+            }
+
+
+
         }
 
         public ResidentVoter() { }
