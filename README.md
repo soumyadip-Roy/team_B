@@ -18,3 +18,7 @@ The application to be developed for assessment in Advanced Training. C# Project.
 - Added passport verification method in NRI Voter
 - Added passport verif table in sql database and query
 - Next Target: Implement the View Voter Details and make voting illegal for unlisted candidates.
+#### Up6/11/25
+- Defined the View Voter Details method in both resident and nri classes
+- Voting was restricted to legal candidates
+- Next Target: Implement the Election Commission Class with proper Definitions
