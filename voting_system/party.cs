@@ -104,7 +104,7 @@ namespace voting_system
 
             foreach (var mem in Members)
             {
-                Console.WriteLine($"   - {mem.CandidateName} ({mem.Constituency}) | Votes: {mem.VoteCount}");
+                Console.WriteLine($"   * {mem.CandidateName} ({mem.Constituency}) | Votes: {mem.VoteCount}");
             }
         }
         public void Tpartyvotes()

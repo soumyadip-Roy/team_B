@@ -112,7 +112,7 @@ namespace voting_system
 
 
             Updatetotable();
-            Console.WriteLine($"{CandidateName} now has {VoteCount} votes!");
+            Console.WriteLine($"{CandidateName} has {VoteCount} votes!");
 
 
         }
@@ -120,7 +120,7 @@ namespace voting_system
         {
             Constituency = constituencyName;
             Updatetotable();
-            Console.WriteLine($"{CandidateName} assigned to constituency: {constituencyName}");
+            Console.WriteLine($"{CandidateName} succesfully assigned to constituency: {constituencyName}");
         }
 
 
