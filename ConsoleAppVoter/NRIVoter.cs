@@ -329,6 +329,7 @@ namespace ConsoleAppVoter
                 {
                     var voting_status = GetVoterStatus(age, isInBlacklist, voter_id);
                     ConnectToDatabase();
+
                     if(voting_status==0)
                     {
                         var sqlQuerry = "Insert into VOTING_DAY_TABLE values (@CONSTITUENCY, @CANDIDATE_NAME)";
@@ -349,10 +350,13 @@ namespace ConsoleAppVoter
                     }
                     else
                     {
-                        //Console.WriteLine("The Voter is not eligible to vote anymore");
-                        throw new ArgumentException("MULTIPLE_VOTES_ATTEMPT");
+                        throw new AlreadyVotedException(name);
 
                     }
+                }
+                catch(AlreadyVotedException av)
+                {
+                    Console.WriteLine("<==========ERROR==========>");
                 }
                 catch(Exception e)
                 {
@@ -394,12 +398,30 @@ namespace ConsoleAppVoter
                                     candidate_table.Add(++count, reader.GetString(0));
                                 }
 
-                                Console.Write("Please Enter the Candidate Number You would like to vote for [1,2,3...] : ");
-                                RegisterVoteInDB(name, age, constituency, candidate_table[Convert.ToInt16(Console.ReadLine())], id, false);
+                                Console.Write("Please Enter the Candidate Number You would like to vote for [1,2,3...] or Press [0] for NOTA : ");
+                                var choice_user = Convert.ToInt16(Console.ReadLine());
+                                if (choice_user <= count && count != 0)
+                                {
+                                    RegisterVoteInDB(name, age, constituency, candidate_table[choice_user], id, false);
+                                }
+                                else if (choice_user == 0)
+                                {
+                                    RegisterVoteInDB(name, age, constituency, "__NOTA__", id, false);
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Invalid Candidate Chosen, Please go throught the list again");
+                                    throw new InvalidCandidateException();
+
+                                }
                             }
                         }
                     }
                 }
+            catch(InvalidCandidateException iv)
+            {
+                CastVote();
+            }
             catch(Exception e)
                 {
                     Console.WriteLine(e.ToString());
