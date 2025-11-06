@@ -17,6 +17,7 @@ namespace ConsoleAppVoter
         public abstract int GetVoterAge(string voter_id);
         public abstract void CastVote();
         public abstract void ResetVotingStatusinDB(string voter_id);
+        public abstract void ViewVoterDetails();
 
 
     }

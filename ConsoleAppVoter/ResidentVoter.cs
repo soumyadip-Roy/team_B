@@ -287,7 +287,7 @@ namespace ConsoleAppVoter
                 }
             }
         }
-        public void ResetVotingStatusinDB(string name, int age, string constituency, string candidate, string voter_id, bool isInBlacklist)
+        public override void ResetVotingStatusinDB(string voter_id)
         {
             ConnectToDatabase();
             var sqlQuerry = "Update VOTER_TABLE set VOTING_STATUS = 0 where VOTER_ID = @VOTER_ID";
@@ -351,6 +351,10 @@ namespace ConsoleAppVoter
 
 
 
+        }
+        public override void ViewVoterDetails()
+        {
+            throw new NotImplementedException();
         }
 
         public ResidentVoter() { }

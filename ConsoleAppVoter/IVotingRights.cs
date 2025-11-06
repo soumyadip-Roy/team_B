@@ -10,5 +10,7 @@ namespace ConsoleAppVoter
     {
         void CastVote();
         void ResetVotingStatusinDB(string voter_id);
+
+        void ViewVoterDetails();
     }
 }

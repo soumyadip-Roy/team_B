@@ -246,11 +246,39 @@ namespace ConsoleAppVoter
             }
         }
 
-        //public string GetVoterCurrentResidence()
-        //{
-            
-            
-        //}
+        public string GetVoterCurrentResidence(string voter_id)
+        {
+            try
+            {
+                ConnectToDatabase();
+                var sqlQuery = "Select * from PASSPORT_VERIFICATION where VOTER_ID=@voter_id";
+                using(SqlCommand command = new SqlCommand(sqlQuery, conn_voter))
+                {
+                    command.Parameters.AddWithValue("@voter_id", voter_id);
+                    using(SqlDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.HasRows)
+                        {
+                            if (reader.Read())
+                            {
+                                return reader.GetString(2);
+                            }
+                        }
+                        throw new ArgumentException("The Passport holder lives in an undisclosed country");
+                    }
+                }
+            }
+            catch(Exception E)
+            {
+                Console.WriteLine(E.ToString());
+                return "Passport Holder Not Found...ERROR";
+            }
+            finally
+            {
+                DisconnectToDatabase();
+            }
+
+        }
         public string GetVoterCurrentPassportID()
         {
             Console.WriteLine("<==========NRI_PASSPORT_ENTRY==========>");
@@ -259,6 +287,38 @@ namespace ConsoleAppVoter
             Console.WriteLine("<==========THANK_YOU_FOR_YOUR_COOPERATION==========>");
 
             return passport_num;
+        }
+        public string GetVoterCurrentPassportID(string voter_id)
+        {
+            try
+            {
+                ConnectToDatabase();
+                var sqlQuery = "Select * from PASSPORT_VERIFICATION where VOTER_ID=@voter_id";
+                using (SqlCommand command = new SqlCommand(sqlQuery, conn_voter))
+                {
+                    command.Parameters.AddWithValue("@voter_id", voter_id);
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.HasRows)
+                        {
+                            if (reader.Read())
+                            {
+                                return reader.GetString(0);
+                            }
+                        }
+                        throw new ArgumentException("The Passport Number is not documented");
+                    }
+                }
+            }
+            catch (Exception E)
+            {
+                Console.WriteLine(E.ToString());
+                return "Passport Holder Not Found...ERROR";
+            }
+            finally
+            {
+                DisconnectToDatabase();
+            }
         }
 
         public void RegisterVoteInDB(string name, int age, string constituency, string candidate, string voter_id, bool isInBlacklist) {
@@ -423,6 +483,38 @@ namespace ConsoleAppVoter
                 }
             }
             DisconnectToDatabase();
+        }
+        public override void ViewVoterDetails()
+        {
+            //throw new NotImplementedException();
+            try
+            {
+                string name = GetVoterName();
+                string constituency = GetVoterConstituency();
+                string voter_id = GetVoterId(name, constituency);
+                string voter_age = Convert.ToString(GetVoterAge(voter_id));
+                string voter_passport = GetVoterCurrentPassportID(voter_id);
+                string voter_current_residence = GetVoterCurrentResidence(voter_id);
+
+                Console.WriteLine("<==========VOTER_DETAILS_REQUESTED==========>");
+                Console.WriteLine($"Name: {name}");
+                Console.WriteLine($"Constituency: {constituency}");
+                Console.WriteLine($"Age: {voter_age}");
+                Console.WriteLine($"Voter_ID: {voter_id}");
+                Console.WriteLine($"Passport Num: {voter_passport}");
+                Console.WriteLine($"Current Residence: {voter_current_residence}");
+
+
+
+            }
+            catch(Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            finally
+            {
+                Console.WriteLine("<==========FINISHED==========>");
+            }
         }
 
         public NRIVoter() { }
