@@ -13,3 +13,8 @@ The application to be developed for assessment in Advanced Training. C# Project.
 - Defined more functionalities
 - Thoroughly went throught the requirements file
 - Next Target: Implement the Cast Vote Method and create the SQL Table for passport Verification
+#### Up5/11/25
+- Defined the cast vote methods for both classes
+- Added passport verification method in NRI Voter
+- Added passport verif table in sql database and query
+- Next Target: Implement the View Voter Details and make voting illegal for unlisted candidates.
