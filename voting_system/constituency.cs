@@ -12,90 +12,99 @@ namespace voting_system
 
     public class Constituency : Database
     {
+        private static readonly string connectionString = DbConfig.ConnectionString;
 
-        static string connection_string = "server = LAPTOP-MI8QQQVT;database=VOTER_PROJECT;TrustServerCertificate=Yes;Trusted_Connection=True";
-        static SqlConnection conn_voter = new SqlConnection(connection_string) { };
+        public string Constituencyname { get; set; } = "";
+        public string District { get; set; } = "";
+        public string State { get; set; } = "";
+        public List<Candidate> Candidates { get; set; } = new List<Candidate>();
 
-        public string Constituencyname;
-        public string District;
-        public string State;
-        public List<Candidate> Candidates;
-
+        public Constituency() { }
 
         public Constituency(string name, string district, string state)
         {
             Constituencyname = name;
             District = district;
             State = state;
-            Candidates = new List<Candidate>();
         }
 
         public override void Fetchfromtable()
         {
-
-            using (SqlConnection conn = new SqlConnection(connection_string))
+            using (var conn = new SqlConnection(connectionString))
             {
-                string query = "SELECT * FROM CONSTITUENCY_TABLE WHERE CONSTITUENCY=@name";
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@name", Constituencyname);
                 conn.Open();
-                SqlDataReader reader = cmd.ExecuteReader();
-
-
-
+                string query = "SELECT CONSTITUENCY, DISTRICT, STATE FROM CONSTITUENCY_TABLE WHERE CONSTITUENCY=@name";
+                using (var cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@name", Constituencyname ?? "");
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            Constituencyname = reader.IsDBNull(0) ? Constituencyname : reader.GetString(0);
+                            District = reader.IsDBNull(1) ? District : reader.GetString(1);
+                            State = reader.IsDBNull(2) ? State : reader.GetString(2);
+                        }
+                    }
+                }
             }
-
         }
 
         public override void Deletefromtable()
         {
-            using (SqlConnection conn = new SqlConnection(connection_string))
+            using (var conn = new SqlConnection(connectionString))
             {
-                string query = "DELETE FROM CONSTITUENCY_TABLE WHERE NAME=@name";
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@name", Constituencyname);
                 conn.Open();
-                cmd.ExecuteNonQuery();
+                string query = "DELETE FROM CONSTITUENCY_TABLE WHERE CONSTITUENCY=@name";
+                using (var cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@name", Constituencyname ?? "");
+                    cmd.ExecuteNonQuery();
+                }
             }
-
-
-
         }
 
         public override void Updatetotable()
         {
-
-
-        }
-        public override void Savetotable()
-        {
-
-            using (SqlConnection conn = new SqlConnection(connection_string))
+            using (var conn = new SqlConnection(connectionString))
             {
-                string query = "INSERT INTO CONSTITUENCY_TABLE (CONSTITUENCY, DISTRICT, STATE) VALUES (@name, @dist, @state)";
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@name", Constituencyname);
-
-                cmd.Parameters.AddWithValue("@dist", District);
-                cmd.Parameters.AddWithValue("@state", State);
                 conn.Open();
-                cmd.ExecuteNonQuery();
+                string query = "UPDATE CONSTITUENCY_TABLE SET DISTRICT=@dist, STATE=@state WHERE CONSTITUENCY=@name";
+                using (var cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@dist", District ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@state", State ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@name", Constituencyname ?? "");
+                    cmd.ExecuteNonQuery();
+                }
             }
         }
 
+        public override void Savetotable()
+        {
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                string query = "INSERT INTO CONSTITUENCY_TABLE (CONSTITUENCY, DISTRICT, STATE) VALUES (@name, @dist, @state)";
+                using (var cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@name", Constituencyname ?? "");
+                    cmd.Parameters.AddWithValue("@dist", District ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@state", State ?? (object)DBNull.Value);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
 
         public void Display()
         {
-            Console.WriteLine($"Constituency: {Constituencyname}");
-            Console.WriteLine($"District: {District}");
-            Console.WriteLine($"State: {State}");
-            Console.WriteLine("Candidates:");
-
-            foreach (var cand in Candidates)
+            Console.WriteLine($"Constituency: {Constituencyname} | District: {District} | State: {State}");
+            foreach (var c in Candidates)
             {
-                Console.WriteLine($"   - {cand.CandidateName} ({cand.PartyName}) | Votes: {cand.VoteCount}");
+                Console.WriteLine($"   - {c.CandidateName} ({c.PartyName}) Votes: {c.VoteCount}");
             }
         }
+
         public void topcandidate()
         {
             if (Candidates.Count == 0)
@@ -107,6 +116,7 @@ namespace voting_system
             var top = Candidates.OrderByDescending(c => c.VoteCount).First();
             Console.WriteLine($"Top candidate in {Constituencyname}: {top.CandidateName} ({top.PartyName}) with {top.VoteCount} votes.");
         }
+
         public void Tvotes()
         {
             int total = Candidates.Sum(c => c.VoteCount);

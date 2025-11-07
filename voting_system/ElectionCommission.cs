@@ -7,203 +7,150 @@ using System.Threading.Tasks;
 
 namespace voting_system
 {
+
+
+
+
     public static class ElectionCommission
     {
+        private static readonly string connectionString = DbConfig.ConnectionString;
 
+        public static List<Candidate> Candidates { get; } = new List<Candidate>();
+        public static List<Party> Parties { get; } = new List<Party>();
+        public static int TotalVotes { get; private set; } = 0;
 
-
-        static string connection_string = "server = LAPTOP-MI8QQQVT;database=VOTER_PROJECT;TrustServerCertificate=Yes;Trusted_Connection=True";
-        static SqlConnection conn_voter = new SqlConnection(connection_string) { };
-
-        public static int Tvotes = 0;
-
-        public static List<Candidate> Candidates = new List<Candidate>();
-
-        public static List<Party> Parties = new List<Party>();
-
-        static void ConnectToDatabase()
+        public static void LoadCandidatesFromDb()
         {
-            conn_voter.Open();
-        }
-
-        static void DisconnectFromDatabase()
-        {
-            conn_voter.Close();
-        }
-
-        public static void LoadCandidates(List<Candidate> candidate_list)
-        {
+            Candidates.Clear();
             try
             {
-                ConnectToDatabase();
-                var sqlQuery = "Select * from CANDIDATE_TABLE";
-                using(SqlCommand command = new SqlCommand(sqlQuery, conn_voter))
+                using (var conn = new SqlConnection(connectionString))
                 {
-                    using(SqlDataReader reader = command.ExecuteReader())
+                    conn.Open();
+                    string sql = "SELECT NAME, CONSTITUENCY, PARTY, VOTE_COUNT, CANDIDATE_ID FROM CANDIDATE_TABLE";
+                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var reader = cmd.ExecuteReader())
                     {
-                        if (reader.HasRows)
+                        while (reader.Read())
                         {
-                            while (reader.Read())
+                            var c = new Candidate
                             {
-                                var candidate_name = reader.GetString(0);
-                                var candidate_constituency = reader.GetString(1);
-                                var candidate_party = reader.GetString(2);
-                                var candidate_votes = reader.GetInt16(3);
-                                var candidate_partySymbol = "";
-                                // Add the leader column to the table. 
-                                var candidate_leader = "";
-                                sqlQuery = "Select * from PARTY_TABLE where NAME = @party";
-                                using (SqlCommand command_read = new SqlCommand(sqlQuery, conn_voter))
-                                {
-                                    command_read.Parameters.AddWithValue("@party", candidate_party);
-                                    using(SqlDataReader reader_party = command_read.ExecuteReader())
-                                    {
-                                        if (reader_party.HasRows)
-                                        {
-                                            if (reader_party.Read())
-                                            {
-                                                candidate_partySymbol = reader_party.GetString(2);
-                                                //candidate_leader = reader_party.GetString(4);
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Candidate temp_cand_creation = new Candidate(candidate_name, candidate_party, candidate_partySymbol, candidate_leader, candidate_constituency);
-                                candidate_list.Add(temp_cand_creation);
-
-                            }
+                                CandidateName = reader.IsDBNull(0) ? "" : reader.GetString(0),
+                                Constituency = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                                PartyName = reader.IsDBNull(2) ? "" : reader.GetString(2),
+                                VoteCount = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                                CandidateId = reader.IsDBNull(4) ? "" : reader.GetString(4)
+                            };
+                            Candidates.Add(c);
                         }
                     }
                 }
             }
-            catch(Exception E)
+            catch (Exception e)
             {
-                Console.WriteLine(E.ToString());
-            }
-            finally
-            {
-                DisconnectFromDatabase();
+                Console.WriteLine("Error in LoadCandidatesFromDb: " + e);
             }
         }
 
-        public static void LoadParties()
+        public static void LoadPartiesFromDb()
         {
-            ConnectToDatabase();
+            Parties.Clear();
             try
             {
-                var sqlquery = "Select * from PARTY_TABLE";
-                using(SqlCommand command = new SqlCommand(sqlquery, conn_voter))
+                using (var conn = new SqlConnection(connectionString))
                 {
-                    using(SqlDataReader reader = command.ExecuteReader())
+                    conn.Open();
+                    string sql = "SELECT NAME, LOGO, LEADER FROM PARTY_TABLE";
+                    using (var cmd = new SqlCommand(sql, conn))
+                    using (var reader = cmd.ExecuteReader())
                     {
-                        if (reader.HasRows)
+                        while (reader.Read())
                         {
-                            while (reader.Read())
+                            var p = new Party
                             {
-                                var party_name = reader.GetString(0);
-                                var party_symbol = reader.GetString(1);
-                                var party_leader = "";
-                                //var party_leader = reader.GetString(3);
-                                Party temp_party_creation = new Party(party_name, party_symbol, party_leader);
-                                Parties.Add(temp_party_creation);
-                            }
+                                PartyName = reader.IsDBNull(0) ? "" : reader.GetString(0),
+                                PartySymbol = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                                LeaderName = reader.IsDBNull(2) ? "" : reader.GetString(2)
+                            };
+                            Parties.Add(p);
                         }
                     }
                 }
             }
-            catch(Exception E)
+            catch (Exception e)
             {
-                Console.WriteLine(E.ToString());
-            }
-            finally
-            {
-                DisconnectFromDatabase();
+                Console.WriteLine("Error in LoadPartiesFromDb: " + e);
             }
         }
 
-        public static void Updatevotes()
+        public static void AssignCandidatesToParties()
+        {
+            foreach (var p in Parties)
+                p.Members.Clear();
+
+            foreach (var c in Candidates)
             {
-                
-
-                foreach (var cand in Candidates)
+                var party = Parties.FirstOrDefault(p => string.Equals(p.PartyName, c.PartyName, StringComparison.OrdinalIgnoreCase));
+                if (party == null)
                 {
-                    cand.Updatetotable();  
-                    Tvotes += cand.VoteCount;
+                    party = new Party(c.PartyName, "", "");
+                    Parties.Add(party);
                 }
-                
+                party.Members.Add(c);
             }
+        }
 
+        public static void UpdateVotesToDb()
+        {
+            TotalVotes = 0;
+            foreach (var c in Candidates)
+            {
+                try
+                {
+                    c.Updatetotable();
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Error updating candidate {c.CandidateName}: {e}");
+                }
+                TotalVotes += c.VoteCount;
+            }
+        }
+
+        public static void RecalculatePartyVotes()
+        {
+            foreach (var p in Parties)
+                p.RecalculateVotes();
+        }
 
         public static void DisplayResults()
         {
-            Console.WriteLine("---------------- Results -----");
-
-            foreach (var cand in Candidates)
+            Console.WriteLine("===== ELECTION RESULTS =====");
+            foreach (var p in Parties.OrderByDescending(p => p.VoteCount))
             {
-                cand.Displaycand();
-                Console.WriteLine("---------------------------------");
+                p.Display();
+                Console.WriteLine("----------------------------------");
             }
-
-            Console.WriteLine($"\nTotal Votes Cast: {Tvotes}");
-
-            Console.WriteLine("---------------------------------");
-
-        }
-        public static void Displaypwinners()
-        {
-            Console.WriteLine("\n----- Party-wise Winners -----");
-            foreach (var p in Parties)
-            {
-                p.winner();
-            }
+            Console.WriteLine($"TOTAL VOTES (sum of candidate votes): {TotalVotes}");
         }
 
-        public static void winningparty()
+        public static void DisplayOverallWinner()
         {
-
-            Console.WriteLine("---------winner---------");
-
-            if (Parties.Count == 0)
+            RecalculatePartyVotes();
+            var ordered = Parties.OrderByDescending(p => p.VoteCount).ToList();
+            if (ordered.Count == 0)
             {
-                Console.WriteLine("zero partie");
+                Console.WriteLine("No parties loaded.");
                 return;
             }
 
-            
-            foreach (var party in Parties)
+            var winner = ordered.First();
+            var runnerUp = ordered.Count > 1 ? ordered[1] : null;
+            Console.WriteLine($"Winning party: {winner.PartyName} with {winner.VoteCount} votes.");
+            if (runnerUp != null)
             {
-                party.Tpartyvotes(); 
+                Console.WriteLine($"Runner up: {runnerUp.PartyName} with {runnerUp.VoteCount} votes. Majority: {winner.VoteCount - runnerUp.VoteCount}");
             }
-
-            
-            var sorted = Parties.OrderByDescending(p => p.VoteCount).ToList();
-
-            var winnerParty = sorted.First();
-            Party runnerUpParty = null;
-            if (sorted.Count > 1)
-            {
-                runnerUpParty = sorted[1];
-            }
-
-            Console.WriteLine($"\nWinning Party: {winnerParty.PartyName}");
-            Console.WriteLine($"Total Votes: {winnerParty.VoteCount}");
-
-            if (runnerUpParty != null)
-            {
-                int majority = winnerParty.VoteCount - runnerUpParty.VoteCount;
-                Console.WriteLine($"Majoriity over {runnerUpParty.PartyName}: {majority} votes");
-            }
-            else
-            {
-                Console.WriteLine("No runner-up");
-            }
-
-
-            Console.WriteLine("------------------------------------\n");
-
-
-
         }
 
 
@@ -223,4 +170,5 @@ namespace voting_system
         */
 
     }
-    }
+}
+    
