@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace voting_system
+
 {
     public static class ElectionCommission
     {
