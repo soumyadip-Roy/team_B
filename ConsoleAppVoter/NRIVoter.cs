@@ -335,7 +335,7 @@ namespace ConsoleAppVoter
                         var sqlQuerry = "Insert into VOTING_DAY_TABLE values (@CONSTITUENCY, @CANDIDATE_NAME)";
                         using (SqlCommand command = new SqlCommand(sqlQuerry, conn_voter))
                         {
-                            command.Parameters.AddWithValue("@CONSTITUENCY", "NRI_VOTE");
+                            command.Parameters.AddWithValue("@CONSTITUENCY", constituency);
                             command.Parameters.AddWithValue("@CANDIDATE_NAME", candidate);
                             command.ExecuteNonQuery();
                             Console.WriteLine("Thank You For Voting!");
@@ -508,7 +508,7 @@ namespace ConsoleAppVoter
         }
         public override void ViewVoterDetails()
         {
-            //throw new NotImplementedException();
+            
             try
             {
                 string name = GetVoterName();
@@ -539,6 +539,11 @@ namespace ConsoleAppVoter
             }
         }
 
+        public override string ToString()
+        {
+            ViewVoterDetails();
+            return "Redundant_Function_call";
+        }
         public NRIVoter() { }
     }
 }
