@@ -9,109 +9,106 @@ namespace voting_system
 {
     public class Party : Database
     {
-
         public string PartyName;
         public string PartySymbol;
         public string LeaderName;
         public int VoteCount;
-        public string Constituency;
-        public List<Candidate> Members;
+        public List<Candidate> Members  = new List<Candidate>();
 
-        static string connection_string = "server = LAPTOP-MI8QQQVT;database=VOTER_PROJECT;TrustServerCertificate=Yes;Trusted_Connection=True";
-        static SqlConnection conn_voter = new SqlConnection(connection_string) { };
+        private static readonly string connectionString = DbConfig.ConnectionString;
 
-
+        public Party() { }
         public Party(string name, string symbol, string leader)
         {
             PartyName = name;
             PartySymbol = symbol;
             LeaderName = leader;
-            VoteCount = 0;
-            Members = new List<Candidate>();
         }
-
 
         public override void Fetchfromtable()
         {
-            using (SqlConnection conn = new SqlConnection(connection_string))
+            using (var conn = new SqlConnection(connectionString))
             {
-                string query = "SELECT * FROM PARTY_TABLE WHERE NAME=@name";
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@name", PartyName);
                 conn.Open();
-                SqlDataReader reader = cmd.ExecuteReader();
-
-
-
+                string query = "SELECT NAME, LOGO, LEADER FROM PARTY_TABLE WHERE NAME=@name";
+                using (var cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@name", PartyName ?? "");
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            PartyName = reader.IsDBNull(0) ? PartyName : reader.GetString(0);
+                            PartySymbol = reader.IsDBNull(1) ? PartySymbol : reader.GetString(1);
+                            LeaderName = reader.IsDBNull(2) ? LeaderName : reader.GetString(2);
+                        }
+                    }
+                }
             }
-
-
         }
+
         public override void Updatetotable()
         {
-
-            using (SqlConnection conn = new SqlConnection(connection_string))
+            using (var conn = new SqlConnection(connectionString))
             {
-                string query = "UPDATE PARTY_TABLE SET VOTE_COUNT=@votes WHERE NAME=@name";
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@votes", VoteCount);
-                cmd.Parameters.AddWithValue("@name", PartyName);
                 conn.Open();
-                cmd.ExecuteNonQuery();
+                string query = "UPDATE PARTY_TABLE SET LOGO=@logo, LEADER=@leader, VOTE_COUNT=@votes WHERE NAME=@name";
+                using (var cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@logo", PartySymbol ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@leader", LeaderName ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@votes", VoteCount);
+                    cmd.Parameters.AddWithValue("@name", PartyName ?? "");
+                    cmd.ExecuteNonQuery();
+                }
             }
-
         }
+
         public override void Deletefromtable()
         {
-            using (SqlConnection conn = new SqlConnection(connection_string))
+            using (var conn = new SqlConnection(connectionString))
             {
-                string query = "DELETE FROM PARTY_TABLE WHERE NAME=@name";
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@name", PartyName);
                 conn.Open();
-                cmd.ExecuteNonQuery();
+                string query = "DELETE FROM PARTY_TABLE WHERE NAME=@name";
+                using (var cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@name", PartyName ?? "");
+                    cmd.ExecuteNonQuery();
+                }
             }
-
-
         }
+
         public override void Savetotable()
         {
-            using (SqlConnection conn = new SqlConnection(connection_string))
+            using (var conn = new SqlConnection(connectionString))
             {
-                string query = "INSERT INTO PARTY_TABLE (NAME, CONSTITUENCY, LOGO, VOTE_COUNT) VALUES (@name, @const, @logo, @votes)";
-                SqlCommand cmd = new SqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@name", PartyName);
-
-                cmd.Parameters.AddWithValue("@const", Constituency);
-                cmd.Parameters.AddWithValue("@logo", PartySymbol);
-                cmd.Parameters.AddWithValue("@votes", VoteCount);
                 conn.Open();
-                cmd.ExecuteNonQuery();
+                string query = "INSERT INTO PARTY_TABLE (NAME, LOGO, LEADER, VOTE_COUNT) VALUES (@name, @logo, @leader, @votes)";
+                using (var cmd = new SqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@name", PartyName ?? "");
+                    cmd.Parameters.AddWithValue("@logo", PartySymbol ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@leader", LeaderName ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@votes", VoteCount);
+                    cmd.ExecuteNonQuery();
+                }
             }
-
-
         }
 
-
+        public void RecalculateVotes()
+        {
+            VoteCount = Members.Sum(m => m.VoteCount);
+        }
 
         public void Display()
         {
-            Console.WriteLine($"Party: {PartyName}");
-            Console.WriteLine($"Leader: {LeaderName}");
-            Console.WriteLine($"Symbol: {PartySymbol}");
-            Console.WriteLine($"Total Votes: {VoteCount}");
-            Console.WriteLine("Members:");
-
-            foreach (var mem in Members)
+            Console.WriteLine($"Party: {PartyName} | Leader: {LeaderName} | Symbol: {PartySymbol} | TotalVotes: {VoteCount}");
+            foreach (var m in Members)
             {
-                Console.WriteLine($"   * {mem.CandidateName} ({mem.Constituency}) | Votes: {mem.VoteCount}");
+                Console.WriteLine($"   - {m.CandidateName} ({m.Constituency}) Votes: {m.VoteCount}");
             }
         }
-        public void Tpartyvotes()
-        {
-            VoteCount = Members.Sum(c => c.VoteCount);
-            Console.WriteLine($"Total votes for {PartyName}: {VoteCount}");
-        }
+
         public void winner()
         {
             if (Members.Count == 0)
